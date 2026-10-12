@@ -472,55 +472,84 @@ export default function ExamPage() {
     return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
   }
 
-  if (phase === 'loading') return <Center>Memuat ujian...</Center>;
-  if (phase === 'error') return <Center><b style={{ color: '#b91c1c' }}>❌ {errMsg}</b></Center>;
+     if (phase === 'loading') {
+    return (
+      <Screen center>
+        <div className="spinner" />
+        <h2 className="title">Memuat ujian...</h2>
+        <p className="sub">Mohon tunggu sebentar</p>
+      </Screen>
+    );
+  }
+
+  if (phase === 'error') {
+    return (
+      <Screen center>
+        <div className="icon-badge icon-bad">⚠️</div>
+        <h2 className="title">Ujian tidak dapat dibuka</h2>
+        <p className="sub" style={{ marginTop: 8 }}>{errMsg}</p>
+        <button className="btn btn-ghost" style={{ marginTop: 20 }} onClick={() => window.location.reload()}>
+          Muat ulang halaman
+        </button>
+      </Screen>
+    );
+  }
 
   if (phase === 'done') {
     return (
-      <Center>
-        <div style={{ fontSize: 48 }}>✅</div>
-        <h2>Jawaban Anda sudah terkirim</h2>
-        <p style={{ color: '#475569' }}>Terima kasih. Anda boleh menutup halaman ini.</p>
-        {GAS_APP_URL ? <a href={GAS_APP_URL} style={{ ...btn('#2563eb'), textDecoration: 'none', display: 'inline-block' }}>Kembali ke aplikasi ujian</a> : null}
-      </Center>
+      <Screen center>
+        <div className="icon-badge icon-ok">✅</div>
+        <h2 className="title">Jawaban terkirim</h2>
+        <p className="sub" style={{ marginTop: 8 }}>Terima kasih, jawaban Anda sudah tersimpan. Anda boleh menutup halaman ini.</p>
+        {GAS_APP_URL ? <a href={GAS_APP_URL} className="btn btn-primary" style={{ marginTop: 20 }}>Kembali ke aplikasi ujian</a> : null}
+      </Screen>
     );
   }
 
   if (phase === 'dq') {
     return (
-      <Center>
-        <div style={{ fontSize: 48 }}>⛔</div>
-        <h2 style={{ color: '#b91c1c' }}>Anda didiskualifikasi</h2>
-        <p style={{ color: '#475569' }}>Sistem mendeteksi pelanggaran: <b>{dqReason}</b>.</p>
-        <p style={{ color: '#475569' }}>Jawaban yang sudah ada tetap terkirim. Hubungi pengawas ruang.</p>
-      </Center>
+      <Screen center>
+        <div className="icon-badge icon-bad">⛔</div>
+        <h2 className="title" style={{ color: 'var(--danger)' }}>Anda didiskualifikasi</h2>
+        <p className="sub" style={{ marginTop: 8 }}>Sistem mendeteksi pelanggaran: <b>{dqReason}</b>.</p>
+        <p className="sub" style={{ marginTop: 6 }}>Jawaban yang sudah ada tetap terkirim. Silakan hubungi pengawas ruang.</p>
+      </Screen>
     );
   }
 
   if (phase === 'intro') {
     const answered = data.questions.filter(x => isAnswered(x.id)).length;
     return (
-      <Center>
-        <div style={{ maxWidth: 480, textAlign: 'left' }}>
-          <h2 style={{ marginTop: 0 }}>{data.exam.subject}</h2>
-          <p style={{ color: '#475569' }}>{data.student.name} • Kelas {String(data.student.class).toUpperCase()}</p>
-          <p>Jumlah soal: <b>{data.questions.length}</b> • Sisa waktu: <b>{fmt(secondsLeft)}</b></p>
-          {answered > 0 && <p style={{ color: '#15803d' }}>Jawaban sebelumnya ditemukan ({answered} soal). Anda akan melanjutkan.</p>}
-          <div style={{ background: '#fef2f2', borderLeft: '4px solid #ef4444', padding: 14, borderRadius: 8, color: '#991b1b', fontSize: 14, margin: '14px 0' }}>
-            <b>Perhatian:</b>
-            <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
-              <li>Jangan membuka tab/aplikasi lain atau minimize browser.</li>
-              <li>Jangan keluar dari mode layar penuh.</li>
-              <li>Menempel (paste) tidak diizinkan.</li>
-              <li>Pelanggaran dicatat dan dapat membuat Anda didiskualifikasi.</li>
-            </ul>
-          </div>
-          {introMsg && <p style={{ color: '#b91c1c' }}>{introMsg}</p>}
-          <button style={{ ...btn('#16a34a'), width: '100%', padding: 14, fontSize: 15 }} onClick={startExam}>
-            SAYA MENGERTI &amp; MULAI
-          </button>
+      <Screen>
+        <p className="eyebrow">Ujian Online</p>
+        <h2 className="title">{data.exam.subject}</h2>
+        <p className="sub">{data.student.name} • Kelas {String(data.student.class).toUpperCase()}</p>
+
+        <div className="chips">
+          <div className="chip"><b>{data.questions.length}</b><span>Jumlah soal</span></div>
+          <div className="chip"><b>{fmt(secondsLeft)}</b><span>Sisa waktu</span></div>
+          <div className="chip"><b>{answered}</b><span>Sudah terjawab</span></div>
         </div>
-      </Center>
+
+        {answered > 0 && (
+          <div className="notice notice-ok">✓ Jawaban sebelumnya ditemukan ({answered} soal). Anda akan melanjutkan.</div>
+        )}
+
+        <div className="rules">
+          <h4>Perhatikan sebelum mulai</h4>
+          <ul>
+            <li><span>🚫</span><span>Jangan membuka tab/aplikasi lain atau minimize browser.</span></li>
+            <li><span>🖥️</span><span>Jangan keluar dari mode layar penuh.</span></li>
+            <li><span>📋</span><span>Menempel (paste) tidak diizinkan.</span></li>
+            <li><span>⚠️</span><span>Pelanggaran dicatat dan dapat membuat Anda didiskualifikasi.</span></li>
+          </ul>
+        </div>
+
+        {introMsg && <div className="notice notice-bad">{introMsg}</div>}
+        <button className="btn btn-ok btn-block" style={{ padding: 15 }} onClick={startExam}>
+          Saya mengerti &amp; mulai
+        </button>
+      </Screen>
     );
   }
 
@@ -697,10 +726,59 @@ function Overlay({ children }) {
   );
 }
 
-function Center({ children }) {
+const BASE_CSS = `
+:root{
+  --bg:#f4f6fb; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --primary:#4f46e5; --primary-dark:#4338ca; --primary-soft:#eef2ff;
+  --ok:#16a34a; --ok-soft:#f0fdf4; --danger:#dc2626; --danger-soft:#fef2f2;
+  --warn:#d97706; --warn-soft:#fffbeb;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:12px 18px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;transition:transform .08s,box-shadow .15s,background .15s;text-decoration:none}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(79,70,229,.25)}
+.btn-primary:hover:not(:disabled){background:var(--primary-dark)}
+.btn-ok{background:var(--ok);color:#fff;box-shadow:0 6px 16px rgba(22,163,74,.25)}
+.btn-ghost{background:#fff;color:#334155;border:1px solid var(--line)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-block{width:100%}
+.screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(1200px 500px at 50% -10%,#e0e7ff 0%,transparent 60%),var(--bg)}
+.panel{width:100%;max-width:520px;background:var(--card);border-radius:24px;padding:28px;box-shadow:0 20px 50px rgba(15,23,42,.10);border:1px solid rgba(226,232,240,.8)}
+.panel-center{text-align:center}
+.icon-badge{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 14px}
+.icon-ok{background:var(--ok-soft)}
+.icon-bad{background:var(--danger-soft)}
+.title{margin:0 0 4px;font-size:24px;line-height:1.25;font-weight:800;letter-spacing:-.02em}
+.sub{margin:0;color:var(--muted);font-size:14px}
+.eyebrow{margin:0 0 6px;font-size:12px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.06em}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}
+.chip{background:var(--bg);border-radius:14px;padding:12px 6px;text-align:center}
+.chip b{display:block;font-size:18px}
+.chip span{font-size:12px;color:var(--muted)}
+.notice{border-radius:14px;padding:12px 14px;font-size:14px;margin:0 0 14px}
+.notice-ok{background:var(--ok-soft);color:#166534;border:1px solid #bbf7d0}
+.notice-bad{background:var(--danger-soft);color:#991b1b;border:1px solid #fecaca}
+.rules{background:var(--warn-soft);border:1px solid #fde68a;border-radius:16px;padding:14px 16px;margin:0 0 16px}
+.rules h4{margin:0 0 8px;font-size:14px;color:#92400e}
+.rules ul{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.rules li{font-size:14px;color:#78350f;display:flex;gap:8px}
+.spinner{width:42px;height:42px;border-radius:50%;border:4px solid #e0e7ff;border-top-color:var(--primary);margin:0 auto 14px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:480px){.panel{padding:22px;border-radius:20px}.title{font-size:21px}}
+`;
+
+function GlobalStyle() {
+  return <style dangerouslySetInnerHTML={{ __html: BASE_CSS }} />;
+}
+
+function Screen({ children, center }) {
   return (
-    <div style={{ fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24, textAlign: 'center' }}>
-      <div>{children}</div>
+    <div className="screen">
+      <GlobalStyle />
+      <div className={'panel' + (center ? ' panel-center' : '')}>{children}</div>
     </div>
   );
 }
