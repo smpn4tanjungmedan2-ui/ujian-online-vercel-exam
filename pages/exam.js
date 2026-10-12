@@ -184,8 +184,21 @@ export default function ExamPage() {
 
   /* ----- Muat data ujian ----- */
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
-    const examID = p.get('examId'), userID = p.get('uid'), token = p.get('token');
+        const p = new URLSearchParams(window.location.search);
+    let examID = p.get('examId'), userID = p.get('uid'), token = p.get('token');
+
+    if (examID && userID && token) {
+      // Simpan sementara di tab ini, lalu bersihkan alamat di address bar
+      try { sessionStorage.setItem('exam_cred', JSON.stringify({ examID, userID, token })); } catch (e) { /* abaikan */ }
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+    } else {
+      // Halaman dimuat ulang (parameter sudah dibersihkan): ambil dari penyimpanan tab
+      try {
+        const saved = JSON.parse(sessionStorage.getItem('exam_cred') || 'null');
+        if (saved) { examID = saved.examID; userID = saved.userID; token = saved.token; }
+      } catch (e) { /* abaikan */ }
+    }
+
     if (!examID || !userID || !token) {
       setErrMsg('Link ujian tidak lengkap. Mulai ujian dari aplikasi utama.');
       goPhase('error');
