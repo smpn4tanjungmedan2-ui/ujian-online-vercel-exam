@@ -51,6 +51,7 @@ function CameraCapture({ onUse, onCancel }) {
   const [camIndex, setCamIndex] = useState(0);
   const [err, setErr] = useState('');
   const [shot, setShot] = useState(null);
+  const [mirror, setMirror] = useState(true);
 
   function stopStream() {
     if (streamRef.current) {
@@ -125,13 +126,14 @@ function CameraCapture({ onUse, onCancel }) {
       ) : shot ? (
         <img src={shot} alt="Hasil foto" style={{ width: '100%', display: 'block', maxHeight: 420, objectFit: 'contain', background: '#000' }} />
       ) : (
-        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', display: 'block', maxHeight: 420, background: '#000' }} />
+        <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', display: 'block', maxHeight: 420, background: '#000', transform: mirror ? 'scaleX(-1)' : 'none' }} />
       )}
 
       <div style={{ display: 'flex', gap: 8, padding: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
         {!shot && !err && (
           <>
             {cams.length > 1 && <button style={btn('#475569')} onClick={switchCam}>⟲ Ganti Kamera</button>}
+            <button style={btn('#475569')} onClick={() => setMirror(m => !m)}>⇋ Balik</button>
             <button style={btn('#fff', '#0f172a')} onClick={capture}>📸 Ambil Foto</button>
           </>
         )}
