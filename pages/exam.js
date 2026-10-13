@@ -37,6 +37,7 @@ function buildPayload(answers) {
   Object.keys(answers).forEach(qid => {
     const a = answers[qid];
     if (a.text && a.text.trim()) out[qid] = a.text;
+    if (Array.isArray(a.choice) ? a.choice.length > 0 : !!a.choice) out[qid] = a.choice;
     if (a.photoUrl) out[qid + '__photo'] = a.photoUrl;
   });
   return out;
@@ -209,7 +210,8 @@ export default function ExamPage() {
     callBridge({ action: 'start', ...credRef.current })
       .then(res => {
         if (!res.success) { setErrMsg(res.message || 'Gagal memuat ujian.'); goPhase('error'); return; }
-        if (res.questions.some(q => String(q.type).trim() !== 'Esai')) {
+        const SUPPORTED = ['Esai', 'PG', 'PG_KOMPLEKS'];
+        if (res.questions.some(q => !SUPPORTED.includes(String(q.type).trim()))) {
           setErrMsg('Ujian ini memuat tipe soal yang belum didukung di halaman ini. Hubungi pengawas.');
           goPhase('error');
           return;
@@ -218,9 +220,13 @@ export default function ExamPage() {
         const saved = res.savedAnswers || {};
         const init = {};
         res.questions.forEach(q => {
-          const text = typeof saved[q.id] === 'string' ? saved[q.id] : '';
+          const isEsai = String(q.type).trim() === 'Esai';
+          const text = isEsai && typeof saved[q.id] === 'string' ? saved[q.id] : '';
+          const choice = q.type === 'PG_KOMPLEKS'
+            ? (Array.isArray(saved[q.id]) ? saved[q.id] : [])
+            : (q.type === 'PG' && typeof saved[q.id] === 'string' ? saved[q.id] : '');
           const photoUrl = typeof saved[q.id + '__photo'] === 'string' ? saved[q.id + '__photo'] : '';
-          init[q.id] = { mode: photoUrl && !text ? 'photo' : 'text', text, photoUrl, photoPreview: '', uploading: false, uploadError: '' };
+          init[q.id] = { mode: photoUrl && !text ? 'photo' : 'text', text, choice, photoUrl, photoPreview: '', uploading: false, uploadError: '' };
         });
         answersRef.current = init;
         setAnswers(init);
@@ -233,7 +239,7 @@ export default function ExamPage() {
         let resume = 0;
         for (let i = 0; i < res.questions.length; i++) {
           const a = init[res.questions[i].id];
-          if (!(a.text.trim() || a.photoUrl)) { resume = i; break; }
+          if (!(a.text.trim() || a.photoUrl || (Array.isArray(a.choice) ? a.choice.length : a.choice))) { resume = i; break; }
           resume = i;
         }
         setIdx(resume);
@@ -311,10 +317,10 @@ export default function ExamPage() {
   flushRef.current = flushSave;
 
   function updateAnswer(qid, patch) {
-    const cur = answersRef.current[qid] || { mode: 'text', text: '', photoUrl: '', photoPreview: '', uploading: false, uploadError: '' };
+    const cur = answersRef.current[qid] || { mode: 'text', text: '', choice: '', photoUrl: '', photoPreview: '', uploading: false, uploadError: '' };
     answersRef.current = { ...answersRef.current, [qid]: { ...cur, ...patch } };
     setAnswers(answersRef.current);
-    if ('text' in patch || 'photoUrl' in patch) {
+    if ('text' in patch || 'photoUrl' in patch || 'choice' in patch) {
       dirtyRef.current = true;
       setSaveState('unsaved');
       scheduleSave(SAVE_DEBOUNCE_MS);
@@ -337,7 +343,7 @@ export default function ExamPage() {
 
   function isAnswered(qid) {
     const a = answers[qid];
-    return !!(a && ((a.text && a.text.trim()) || a.photoUrl));
+    return !!(a && ((a.text && a.text.trim()) || a.photoUrl || (Array.isArray(a.choice) ? a.choice.length > 0 : a.choice)));
   }
   function anyUploading() {
     return Object.keys(answersRef.current).some(k => answersRef.current[k].uploading);
@@ -567,7 +573,7 @@ export default function ExamPage() {
   }
 
     const q = data.questions[idx];
-  const a = answers[q.id] || { mode: 'text', text: '', photoUrl: '', photoPreview: '', uploading: false, uploadError: '' };
+  const a = answers[q.id] || { mode: 'text', text: '', choice: '', photoUrl: '', photoPreview: '', uploading: false, uploadError: '' };
   const total = data.questions.length;
   const answeredCount = data.questions.filter(x => isAnswered(x.id)).length;
   const lowTime = secondsLeft <= 300;
@@ -613,7 +619,7 @@ export default function ExamPage() {
               <div className="q-head">
                 <span className="q-num">Soal {idx + 1}</span>
                 <span className="q-of">dari {total}</span>
-                <span className="q-type">Esai</span>
+                <span className="q-type">{q.type === 'PG_KOMPLEKS' ? 'PG Kompleks' : q.type === 'PG' ? 'Pilihan Ganda' : 'Esai'}</span>
               </div>
 
               <div className="q-content" dangerouslySetInnerHTML={{ __html: q.content }} />
@@ -621,6 +627,10 @@ export default function ExamPage() {
 
               <div className="divider" />
 
+              {q.type !== 'Esai' ? (
+                <Choices q={q} a={a} onChange={v => updateAnswer(q.id, { choice: v })} />
+              ) : (
+              <>
               <div className="seg">
                 {[['text', 'edit', 'Ketik Jawaban'], ['photo', 'camera', 'Foto Jawaban']].map(([m, icon, label]) => (
                   <button key={m} className={'seg-btn' + (a.mode === m ? ' on' : '')}
@@ -672,6 +682,8 @@ export default function ExamPage() {
                   Buka Kamera
                   <small>Foto lembar jawaban Anda dengan jelas dan terang</small>
                 </button>
+              )}
+              </>
               )}
             </div>
 
@@ -737,6 +749,32 @@ export default function ExamPage() {
         {toast && <div className="toast">{toast}</div>}
       </div>
     </>
+  );
+}
+
+function Choices({ q, a, onChange }) {
+  const multi = q.type === 'PG_KOMPLEKS';
+  const opts = Array.isArray(q.options) ? q.options : [];
+  const sel = multi ? (Array.isArray(a.choice) ? a.choice : []) : a.choice;
+
+  function pick(o) {
+    if (multi) onChange(sel.includes(o) ? sel.filter(x => x !== o) : [...sel, o]);
+    else onChange(sel === o ? '' : o);
+  }
+
+  return (
+    <div className="choices">
+      <p className="choice-hint">{multi ? 'Pilih satu atau lebih jawaban yang benar.' : 'Pilih satu jawaban yang paling tepat.'}</p>
+      {opts.map((o, i) => {
+        const on = multi ? sel.includes(o) : sel === o;
+        return (
+          <button key={i} type="button" className={'choice' + (on ? ' on' : '') + (multi ? ' multi' : '')} onClick={() => pick(o)}>
+            <span className="choice-mark">{String.fromCharCode(65 + i)}</span>
+            <span className="choice-text" dangerouslySetInnerHTML={{ __html: String(o) }} />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -855,6 +893,17 @@ body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-sy
 .modal-actions{display:flex;gap:10px}
 .modal-actions .btn{flex:1}
 .icon-warn{background:var(--warn-soft)}
+.choices{display:grid;gap:10px}
+.choice-hint{margin:0 0 2px;font-size:13px;font-weight:600;color:var(--muted)}
+.choice{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:13px 14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;font:inherit;font-size:16px;line-height:1.5;color:var(--ink);cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
+.choice:hover{border-color:#c7d2fe;background:#fafaff}
+.choice-mark{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--muted)}
+.choice.multi .choice-mark{border-radius:10px}
+.choice-text{flex:1;min-width:0}
+.choice-text p{margin:0}
+.choice-text img{max-width:100%;border-radius:8px}
+.choice.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+.choice.on .choice-mark{background:var(--primary);border-color:var(--primary);color:#fff}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;z-index:60;max-width:90vw;box-shadow:0 10px 30px rgba(15,23,42,.3)}
 @media (max-width:899px){
   .exam-wrap{grid-template-columns:1fr;padding:14px 14px 100px}
