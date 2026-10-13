@@ -566,166 +566,175 @@ export default function ExamPage() {
     );
   }
 
-  const q = data.questions[idx];
+    const q = data.questions[idx];
   const a = answers[q.id] || { mode: 'text', text: '', photoUrl: '', photoPreview: '', uploading: false, uploadError: '' };
+  const total = data.questions.length;
   const answeredCount = data.questions.filter(x => isAnswered(x.id)).length;
   const lowTime = secondsLeft <= 300;
   const shownPhoto = a.photoPreview || a.photoUrl;
-  const saveLabel = { saved: '✓ Tersimpan', saving: 'Menyimpan...', unsaved: 'Menyimpan sebentar lagi...', error: '⚠ Belum tersimpan, mencoba lagi' }[saveState];
-  const saveColor = saveState === 'error' ? '#fecaca' : 'rgba(255,255,255,0.85)';
+  const saveLabel = { saved: 'Tersimpan', saving: 'Menyimpan...', unsaved: 'Menunggu simpan', error: 'Gagal simpan, mencoba lagi' }[saveState];
+  const goTo = i => { setIdx(i); setCameraOpen(false); };
 
   return (
     <>
       <Head>
         <title>{data.exam.subject} | Ujian</title>
+        <link rel="icon" href="/favicon.png?v=1" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script dangerouslySetInnerHTML={{ __html: "window.MathJax={tex:{inlineMath:[['$','$'],['\\\\(','\\\\)']],displayMath:[['$$','$$'],['\\\\[','\\\\]']]},svg:{fontCache:'global'}};" }} />
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async />
       </Head>
+      <GlobalStyle />
 
-      <div style={{ fontFamily: '-apple-system, Segoe UI, Roboto, Arial, sans-serif', background: '#f1f5f9', minHeight: '100vh', userSelect: 'none', WebkitUserSelect: 'none' }}>
-        {/* Header */}
-        <div style={{ background: '#2b369e', color: '#fff', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{data.exam.subject}</div>
-            <div style={{ fontSize: 12, color: saveColor }}>{data.student.name} • {saveLabel}</div>
-          </div>
-          <div style={{ background: lowTime ? '#dc2626' : 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 12px', fontWeight: 700, fontFamily: 'monospace', fontSize: 16 }}>
-            ⏱ {fmt(secondsLeft)}
-          </div>
-        </div>
-
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: 16 }}>
-          {/* Kartu soal */}
-          <div style={{ background: '#fff', borderRadius: 14, padding: 18, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#2563eb', marginBottom: 8 }}>
-              SOAL {idx + 1} DARI {data.questions.length} • ESAI
+      <div className="exam-root">
+        <header className="topbar">
+          <div className="topbar-in">
+            <div className="who">
+              <div className="avatar">{String(data.student.name || '?').charAt(0).toUpperCase()}</div>
+              <div className="who-text">
+                <b>{data.exam.subject}</b>
+                <span>{data.student.name} • Kelas {String(data.student.class).toUpperCase()}</span>
+              </div>
             </div>
-
-            <div style={{ fontSize: 16, lineHeight: 1.6, color: '#0f172a' }} dangerouslySetInnerHTML={{ __html: q.content }} />
-            {q.image ? <img src={q.image} alt="Gambar soal" style={{ maxWidth: '100%', marginTop: 10, borderRadius: 8 }} /> : null}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-              {[['text', '⌨️ Ketik Jawaban'], ['photo', '📷 Foto Jawaban']].map(([m, label]) => (
-                <button key={m}
-                  onClick={() => { updateAnswer(q.id, { mode: m }); setCameraOpen(false); }}
-                  style={{ flex: 1, padding: '10px 8px', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer',
-                    border: a.mode === m ? '2px solid #2563eb' : '2px solid #e2e8f0',
-                    background: a.mode === m ? '#eff6ff' : '#fff', color: a.mode === m ? '#1d4ed8' : '#475569' }}>
-                  {label}
-                </button>
-              ))}
+            <div className="top-right">
+              <span className={'save-pill save-' + saveState}><i /><span>{saveLabel}</span></span>
+              <div className={'timer' + (lowTime ? ' timer-low' : '')}>
+                <Icon name="clock" size={18} />
+                {fmt(secondsLeft)}
+              </div>
             </div>
+          </div>
+          <div className="progress"><div style={{ width: (total ? (answeredCount / total) * 100 : 0) + '%' }} /></div>
+        </header>
 
-            <div style={{ marginTop: 12 }}>
+        <div className="exam-wrap">
+          <main>
+            <div className="card">
+              <div className="q-head">
+                <span className="q-num">Soal {idx + 1}</span>
+                <span className="q-of">dari {total}</span>
+                <span className="q-type">Esai</span>
+              </div>
+
+              <div className="q-content" dangerouslySetInnerHTML={{ __html: q.content }} />
+              {q.image ? <img className="q-image" src={q.image} alt="Gambar soal" /> : null}
+
+              <div className="divider" />
+
+              <div className="seg">
+                {[['text', 'edit', 'Ketik Jawaban'], ['photo', 'camera', 'Foto Jawaban']].map(([m, icon, label]) => (
+                  <button key={m} className={'seg-btn' + (a.mode === m ? ' on' : '')}
+                    onClick={() => { updateAnswer(q.id, { mode: m }); setCameraOpen(false); }}>
+                    <Icon name={icon} size={17} /> {label}
+                  </button>
+                ))}
+              </div>
+
               {a.mode === 'text' ? (
-                <textarea
-                  value={a.text || ''}
-                  onChange={e => updateAnswer(q.id, { text: e.target.value })}
-                  placeholder="Ketik jawaban Anda di sini..."
-                  autoComplete="off" autoCorrect="off" spellCheck={false}
-                  style={{ width: '100%', minHeight: 160, boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: 12, padding: 12, fontSize: 15, lineHeight: 1.5, fontFamily: 'inherit', resize: 'vertical', userSelect: 'text', WebkitUserSelect: 'text' }}
+                <>
+                  <textarea
+                    className="answer-box"
+                    value={a.text || ''}
+                    onChange={e => updateAnswer(q.id, { text: e.target.value })}
+                    placeholder="Ketik jawaban Anda di sini..."
+                    autoComplete="off" autoCorrect="off" spellCheck={false}
+                  />
+                  <div className="answer-foot">
+                    <span>Jawaban tersimpan otomatis</span>
+                    <span>{(a.text || '').length} karakter</span>
+                  </div>
+                </>
+              ) : cameraOpen ? (
+                <CameraCapture
+                  onUse={photo => { setCameraOpen(false); uploadPhoto(q.id, photo); }}
+                  onCancel={() => setCameraOpen(false)}
                 />
-              ) : (
+              ) : shownPhoto ? (
                 <div>
-                  {cameraOpen ? (
-                    <CameraCapture
-                      onUse={photo => { setCameraOpen(false); uploadPhoto(q.id, photo); }}
-                      onCancel={() => setCameraOpen(false)}
-                    />
-                  ) : shownPhoto ? (
-                    <div>
-                      <img src={shownPhoto} alt="Foto jawaban" style={{ width: '100%', borderRadius: 12, border: '1px solid #e2e8f0' }} />
-                      {a.uploading && <p style={{ color: '#2563eb', fontWeight: 600 }}>⏳ Mengunggah foto...</p>}
-                      {a.uploadError && (
-                        <div style={{ color: '#b91c1c', marginTop: 6 }}>
-                          ⚠ {a.uploadError}{' '}
-                          <button style={btn('#2563eb')} onClick={() => uploadPhoto(q.id, a.photoPreview)}>Unggah Ulang</button>
-                        </div>
-                      )}
-                      {!a.uploading && (
-                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                          <button style={btn('#2563eb')} onClick={() => setCameraOpen(true)}>Foto Ulang</button>
-                          <button style={btn('#dc2626')} onClick={() => updateAnswer(q.id, { photoUrl: '', photoPreview: '', uploadError: '' })}>Hapus Foto</button>
-                        </div>
-                      )}
+                  <img className="photo-img" src={shownPhoto} alt="Foto jawaban" />
+                  {a.uploading && <p className="photo-state">⏳ Mengunggah foto...</p>}
+                  {a.uploadError && (
+                    <div className="photo-error">
+                      <span>⚠ {a.uploadError}</span>
+                      <button className="btn btn-primary" style={{ padding: '8px 14px', fontSize: 14 }} onClick={() => uploadPhoto(q.id, a.photoPreview)}>Unggah Ulang</button>
                     </div>
-                  ) : (
-                    <button style={{ ...btn('#2563eb'), width: '100%', padding: 16 }} onClick={() => setCameraOpen(true)}>
-                      📷 Buka Kamera
-                    </button>
+                  )}
+                  {!a.uploading && (
+                    <div className="photo-actions">
+                      <button className="btn btn-primary" onClick={() => setCameraOpen(true)}><Icon name="camera" /> Foto Ulang</button>
+                      <button className="btn btn-danger" onClick={() => updateAnswer(q.id, { photoUrl: '', photoPreview: '', uploadError: '' })}><Icon name="trash" /> Hapus Foto</button>
+                    </div>
                   )}
                 </div>
+              ) : (
+                <button className="photo-empty" onClick={() => setCameraOpen(true)}>
+                  <Icon name="camera" size={34} />
+                  Buka Kamera
+                  <small>Foto lembar jawaban Anda dengan jelas dan terang</small>
+                </button>
               )}
             </div>
-          </div>
 
-          {/* Navigasi */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-            <button style={{ ...btn('#e2e8f0', '#334155'), flex: 1, opacity: idx === 0 ? 0.5 : 1 }}
-              disabled={idx === 0} onClick={() => { setIdx(idx - 1); setCameraOpen(false); }}>
-              ← Sebelumnya
-            </button>
-            <button style={{ ...btn('#2563eb'), flex: 1, opacity: idx === data.questions.length - 1 ? 0.5 : 1 }}
-              disabled={idx === data.questions.length - 1} onClick={() => { setIdx(idx + 1); setCameraOpen(false); }}>
-              Berikutnya →
-            </button>
-          </div>
-
-          {/* Kotak nomor soal */}
-          <div style={{ background: '#fff', borderRadius: 14, padding: 14, marginTop: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
-              Nomor Soal ({answeredCount}/{data.questions.length} terjawab)
+            <div className="nav-bar">
+              <button className="btn btn-ghost" disabled={idx === 0} onClick={() => goTo(idx - 1)}>
+                <Icon name="arrowL" /> Sebelumnya
+              </button>
+              <button className="btn btn-primary" disabled={idx === total - 1} onClick={() => goTo(idx + 1)}>
+                Berikutnya <Icon name="arrowR" />
+              </button>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          </main>
+
+          <aside className="side card">
+            <h3>Navigasi Soal</h3>
+            <p className="side-sub">{answeredCount} dari {total} soal terjawab</p>
+            <div className="palette">
               {data.questions.map((x, i) => (
-                <button key={x.id} onClick={() => { setIdx(i); setCameraOpen(false); }}
-                  style={{ width: 40, height: 40, borderRadius: 10, fontWeight: 700, cursor: 'pointer',
-                    border: i === idx ? '2px solid #1d4ed8' : '1px solid #cbd5e1',
-                    background: isAnswered(x.id) ? '#16a34a' : '#fff', color: isAnswered(x.id) ? '#fff' : '#334155' }}>
+                <button key={x.id} onClick={() => goTo(i)}
+                  className={'pal-btn' + (isAnswered(x.id) ? ' is-done' : '') + (i === idx ? ' is-current' : '')}>
                   {i + 1}
                 </button>
               ))}
             </div>
-          </div>
-
-          <button onClick={() => setConfirmOpen(true)} disabled={submitting}
-            style={{ ...btn('#16a34a'), width: '100%', padding: 14, marginTop: 14, fontSize: 15, opacity: submitting ? 0.6 : 1 }}>
-            ✅ Selesai &amp; Kirim Jawaban
-          </button>
+            <div className="legend">
+              <span><i className="c" /> Sekarang</span>
+              <span><i className="d" /> Terjawab</span>
+              <span><i /> Belum</span>
+            </div>
+            <button className="btn btn-ok btn-block" onClick={() => setConfirmOpen(true)} disabled={submitting}>
+              <Icon name="send" /> Selesai &amp; Kirim
+            </button>
+          </aside>
         </div>
 
-        {/* Konfirmasi kirim */}
         {confirmOpen && (
           <Overlay>
-            <h3 style={{ marginTop: 0 }}>Kirim jawaban sekarang?</h3>
-            <p style={{ color: '#475569' }}>
-              {answeredCount} dari {data.questions.length} soal sudah terjawab.
-              {answeredCount < data.questions.length ? ' Ada soal yang belum dijawab.' : ''} Setelah dikirim, jawaban tidak bisa diubah.
+            <h3 className="modal-title">Kirim jawaban sekarang?</h3>
+            <p className="modal-text">
+              {answeredCount} dari {total} soal sudah terjawab.
+              {answeredCount < total ? ' Ada soal yang belum dijawab.' : ''} Setelah dikirim, jawaban tidak bisa diubah.
             </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button style={{ ...btn('#e2e8f0', '#334155'), flex: 1 }} disabled={submitting} onClick={() => setConfirmOpen(false)}>Kembali</button>
-              <button style={{ ...btn('#16a34a'), flex: 1, opacity: submitting ? 0.6 : 1 }} disabled={submitting} onClick={manualSubmit}>
+            <div className="modal-actions">
+              <button className="btn btn-ghost" disabled={submitting} onClick={() => setConfirmOpen(false)}>Kembali</button>
+              <button className="btn btn-ok" disabled={submitting} onClick={manualSubmit}>
                 {submitting ? 'Mengirim...' : 'Ya, Kirim'}
               </button>
             </div>
           </Overlay>
         )}
 
-        {/* Peringatan pelanggaran */}
         {warning && (
           <Overlay>
-            <h3 style={{ marginTop: 0, color: '#b91c1c' }}>⚠ Peringatan {warning.n} dari {DISQUALIFY_AFTER}</h3>
-            <p style={{ color: '#475569' }}>Terdeteksi: <b>{warning.reason}</b>. Pelanggaran dicatat dan dilaporkan ke pengawas. Jika terjadi lagi sampai batas, Anda akan didiskualifikasi.</p>
-            <button style={{ ...btn('#2563eb'), width: '100%' }} onClick={dismissWarning}>Saya mengerti, lanjutkan ujian</button>
+            <div className="icon-badge icon-warn">⚠️</div>
+            <h3 className="modal-title" style={{ textAlign: 'center', color: 'var(--danger)' }}>Peringatan {warning.n} dari {DISQUALIFY_AFTER}</h3>
+            <p className="modal-text" style={{ textAlign: 'center' }}>
+              Terdeteksi: <b>{warning.reason}</b>. Pelanggaran dicatat dan dilaporkan ke pengawas. Jika terjadi lagi sampai batas, Anda akan didiskualifikasi.
+            </p>
+            <button className="btn btn-primary btn-block" onClick={dismissWarning}>Saya mengerti, lanjutkan ujian</button>
           </Overlay>
         )}
 
-        {toast && (
-          <div style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', background: '#0f172a', color: '#fff', padding: '10px 16px', borderRadius: 10, fontSize: 14, zIndex: 60 }}>
-            {toast}
-          </div>
-        )}
+        {toast && <div className="toast">{toast}</div>}
       </div>
     </>
   );
@@ -781,6 +790,86 @@ body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-sy
 .spinner{width:42px;height:42px;border-radius:50%;border:4px solid #e0e7ff;border-top-color:var(--primary);margin:0 auto 14px;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:480px){.panel{padding:22px;border-radius:20px}.title{font-size:21px}}
+.exam-root{min-height:100vh;user-select:none;-webkit-user-select:none}
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1100px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.who{display:flex;align-items:center;gap:12px;min-width:0}
+.avatar{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#4338ca);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.who-text{min-width:0}
+.who-text b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who-text span{font-size:12px;color:var(--muted)}
+.top-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.save-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--bg);color:var(--muted)}
+.save-pill i{width:8px;height:8px;border-radius:50%;background:#94a3b8}
+.save-saved{color:#166534;background:var(--ok-soft)}
+.save-saved i{background:var(--ok)}
+.save-saving i,.save-unsaved i{background:var(--warn)}
+.save-saving i{animation:pulse 1s ease-in-out infinite}
+.save-error{color:#991b1b;background:var(--danger-soft)}
+.save-error i{background:var(--danger)}
+.timer{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;background:var(--primary-soft);color:var(--primary-dark);font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+.timer-low{background:var(--danger);color:#fff;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+.progress{height:4px;background:var(--line)}
+.progress>div{height:100%;background:linear-gradient(90deg,#6366f1,#16a34a);transition:width .3s}
+.exam-wrap{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:20px;grid-template-columns:minmax(0,1fr) 300px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 4px 20px rgba(15,23,42,.05)}
+.q-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.q-num{background:var(--primary);color:#fff;font-weight:800;border-radius:12px;padding:6px 14px;font-size:15px}
+.q-of{font-size:13px;color:var(--muted);font-weight:600}
+.q-type{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--primary);background:var(--primary-soft);padding:5px 10px;border-radius:999px}
+.q-content{font-size:17px;line-height:1.75}
+.q-content p{margin:0 0 .8em}
+.q-content img,.q-image{max-width:100%;border-radius:12px;margin-top:10px}
+.divider{height:1px;background:var(--line);margin:20px 0}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);padding:5px;border-radius:14px;margin-bottom:14px}
+.seg-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:0;background:transparent;padding:11px 8px;border-radius:10px;font:inherit;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer}
+.seg-btn.on{background:#fff;color:var(--primary-dark);box-shadow:0 2px 8px rgba(15,23,42,.10)}
+.answer-box{width:100%;min-height:200px;border:1.5px solid var(--line);border-radius:14px;padding:14px;font:inherit;font-size:16px;line-height:1.6;resize:vertical;user-select:text;-webkit-user-select:text;outline:none;background:#fff}
+.answer-box:focus{border-color:var(--primary);box-shadow:0 0 0 4px rgba(79,70,229,.12)}
+.answer-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px}
+.photo-empty{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;padding:34px 16px;border:2px dashed #c7d2fe;background:var(--primary-soft);border-radius:16px;color:var(--primary-dark);font:inherit;font-weight:700;cursor:pointer}
+.photo-empty small{font-weight:500;color:var(--muted)}
+.photo-img{width:100%;border-radius:14px;border:1px solid var(--line);display:block}
+.photo-actions{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.photo-state{margin-top:10px;font-size:14px;font-weight:600;color:var(--primary-dark)}
+.photo-error{margin-top:10px;font-size:14px;color:#991b1b;background:var(--danger-soft);border:1px solid #fecaca;border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.nav-bar{display:flex;gap:12px;margin-top:16px}
+.nav-bar .btn{flex:1}
+.side{position:sticky;top:84px}
+.side h3{margin:0 0 4px;font-size:15px}
+.side-sub{font-size:13px;color:var(--muted);margin:0 0 14px}
+.palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:8px}
+.pal-btn{height:44px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:700;color:#334155;cursor:pointer}
+.pal-btn.is-done{background:var(--ok);border-color:var(--ok);color:#fff}
+.pal-btn.is-current{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.25)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 18px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:4px;border:1.5px solid var(--line);display:inline-block}
+.legend .d{background:var(--ok);border-color:var(--ok)}
+.legend .c{border-color:var(--primary)}
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modal{background:#fff;border-radius:22px;padding:26px;max-width:440px;width:100%;box-shadow:0 30px 60px rgba(15,23,42,.35)}
+.modal-title{margin:0 0 8px;font-size:20px;font-weight:800}
+.modal-text{margin:0 0 20px;color:var(--muted);font-size:15px;line-height:1.55}
+.modal-actions{display:flex;gap:10px}
+.modal-actions .btn{flex:1}
+.icon-warn{background:var(--warn-soft)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;z-index:60;max-width:90vw;box-shadow:0 10px 30px rgba(15,23,42,.3)}
+@media (max-width:899px){
+  .exam-wrap{grid-template-columns:1fr;padding:14px 14px 100px}
+  .side{position:static}
+  .nav-bar{position:fixed;left:0;right:0;bottom:0;margin:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:30}
+  .toast{bottom:90px}
+}
+@media (max-width:560px){
+  .topbar-in{padding:8px 12px}
+  .save-pill span{display:none}
+  .timer{padding:7px 10px;font-size:15px}
+  .card{padding:16px;border-radius:16px}
+  .q-content{font-size:16px}
+  .avatar{width:36px;height:36px}
+}
 `;
 
 function GlobalStyle() {
@@ -790,8 +879,36 @@ function GlobalStyle() {
 function Screen({ children, center }) {
   return (
     <div className="screen">
+      <SiteHead />
       <GlobalStyle />
       <div className={'panel' + (center ? ' panel-center' : '')}>{children}</div>
     </div>
+  );
+}
+
+function SiteHead() {
+  return (
+    <Head>
+      <title>Ujian Online</title>
+      <link rel="icon" href="/favicon.png?v=1" />
+    </Head>
+  );
+}
+
+const ICONS = {
+  clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
+  edit: <><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></>,
+  camera: <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></>,
+  arrowL: <><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></>,
+  arrowR: <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>,
+  send: <><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>,
+  trash: <><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></>
+};
+
+function Icon({ name, size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name]}
+    </svg>
   );
 }
