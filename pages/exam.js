@@ -8,7 +8,8 @@ import Head from 'next/head';
 // 1 = langsung didiskualifikasi (sama persis dengan aplikasi Apps Script).
 // Saat masa uji coba, 3 lebih aman supaya tidak ada siswa terkena karena salah sentuh.
 const DISQUALIFY_AFTER = 3;
-const REQUIRE_FULLSCREEN = true;      // wajib layar penuh (otomatis dilewati jika perangkat tidak mendukung)
+// Di aplikasi Android (UA berisi SMPN4ExamApp) layar penuh diurus oleh aplikasi, jadi dilewati
+const REQUIRE_FULLSCREEN = !(typeof navigator !== 'undefined' && /SMPN4ExamApp/.test(navigator.userAgent));
 const SAVE_DEBOUNCE_MS = 3000;        // simpan 3 detik setelah siswa berhenti mengetik (sama dengan aplikasi lama)
 const RETRY_SAVE_MS = 5000;           // jeda coba ulang jika gagal menyimpan
 const GAS_APP_URL = process.env.NEXT_PUBLIC_GAS_APP_URL || ''; // opsional: link kembali ke aplikasi utama
@@ -447,6 +448,28 @@ export default function ExamPage() {
       setWarning({ n, reason });
     }
   }
+
+    /* ----- Jembatan ke aplikasi Android ----- */
+  // Pelanggaran yang dideteksi aplikasi (Home, notifikasi, lepas sematan)
+  const nativeVioRef = useRef(null);
+  nativeVioRef.current = handleViolation;
+  useEffect(() => {
+    window.onNativeViolation = (reason) => {
+      if (nativeVioRef.current) nativeVioRef.current(reason);
+    };
+    return () => { window.onNativeViolation = undefined; };
+  }, []);
+
+  // Tandai ujian aktif di aplikasi; lepas sematan setelah keluar dari fase ujian
+  const wasExamRef = useRef(false);
+  useEffect(() => {
+    const A = typeof window !== 'undefined' ? window.AndroidApp : null;
+    if (!A) return;
+    try {
+      if (phase === 'exam') { wasExamRef.current = true; A.lock(); }
+      else if (wasExamRef.current) { wasExamRef.current = false; A.exit(); }
+    } catch (e) { /* abaikan */ }
+  }, [phase]);
 
   async function dismissWarning() {
     await requestFs();
